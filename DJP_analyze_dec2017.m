@@ -2,9 +2,9 @@ clear all
 close all
 
 %windows
-files = dir('F:\DJP_wave_clus\dec13*\times_*.mat'); % file = dir('times_*.mat');
+%files = dir('F:\DJP_wave_clus\dec13*\times_*.mat'); % file = dir('times_*.mat');
 %linux
-% files = dir('/media/dan/MICROCENTER/DJP_wave_clus/dec13_171213_134218/times_*_2.mat'); % file = dir('times_*.mat');
+files = dir('/media/dan/MICROCENTER/DJP_wave_clus/dec13_171213_134218/times_*_2.mat'); % file = dir('times_*.mat');
 
 % For each channel
 for j=1:length(files)
@@ -27,21 +27,26 @@ for j=1:length(files)
         jump_end = find(diff_data < -1);
         
         % raster and histo parameters
-        window = 1000; % 1 s or 1000 ms
-        bin = 16; % make 5 ms bins
-        histo_data = zeros(window/bin,1);
-        
+        window = 2000; % 1 s or 1000 ms
+        left = window * .1;
+        right = window * .9;
+               
         %% For each stim time, put in raster
         spike_times=cell(length(jump_start),1);
-        for j = 1:length(jump_start)
+        for k = 1:length(jump_start)
             
             % Putting data in raster
-            curr = 1 / 30000 * 1000 * jump_start(j); % converting from samples to ms
-            spike_times{j} = 1 / 1000 * (intersect(...
-                sp_t(sp_t > (curr - window / 2))',...
-                sp_t(sp_t < (curr + window / 2))') - curr); % centers, converts ms to seconds
+            % window is in ms
+            curr = 1 / 30000 * 1000 * jump_start(k); % converting from samples to ms
+             % next two lines: 100 ms before, 3900 ms after threshold cross. more
+                % like 3500 ms after stim onset.
+            spike_times{k} = 1 / 1000 * (intersect(...
+                sp_t(sp_t > (curr - left))',...
+                sp_t(sp_t < (curr + right))') - curr); % centers, converts ms to seconds
             
             %% Histogram
+%           bin = 16; % make 5 ms bins
+%           histo_data = zeros(window/bin,1);
             % Binning data for histogram around the stim in milliseconds
 %             for k = 1:(window/bin) % indices in ms
 %                 % k starts at 0, steps by size bin, converted to s,
@@ -52,17 +57,7 @@ for j=1:length(files)
 %                     spike_times{j}(spike_times{j} * 1000 < spike_bin + bin))); 
 %             end
         end
-        
-        % If there are multiple spike classes, we plot them together to see
-        % how their latencies compare
-        raster_axes=subplot(2*num_classes, 2, 2*i-1);
-        if i == 1
-            title_axes=raster_axes;
-        end
-        [xpoints, ~]=plotSpikeRaster(spike_times, 'PlotTYpe','vertline');
-        
-        histo_axes = subplot(2*num_classes, 2, 2*i);
-        % TODO: I have made subplot(~,1,~) subplot(~,2,~), allowing a space
+         % TODO: I have made subplot(~,1,~) subplot(~,2,~), allowing a space
         % next to the graphs in which I intend to display the waveform, as
         % well as the width and summetry of the waveform, displayed in a
         % text box, I think. This info will be extractable from the fig,
@@ -70,10 +65,22 @@ for j=1:length(files)
         % We want to make this so that the waveofrm is edited in the
         % subplot, so you see "is this good?" and the findchangepts next to
         % the histogram.
+        % If there are multiple spike classes, we plot them together to see
+        % how their latencies compare
+        height = 2;
+        width = num_classes;
         
+        raster_axes=subplot(height, width, i);
+        if i == 1
+            title_axes=raster_axes;
+        end
+        [xpoints, ~]=plotSpikeRaster(spike_times, 'PlotTYpe','vertline');
+        
+        histo_axes = subplot(height, width, i+num_classes);
         bin_ms = 20; % bin size in ms
-        histogram(histo_axes, xpoints, (-window/ (2 * 1000)):bin_ms/1000:(window/(2 * 1000)));%bar(histo_data); %histogram(histo_data, window/bin); % consider using a bar graph
-        
+        histogram(histo_axes, xpoints, (-left/1000):bin_ms/1000:(right/1000));
+        ax=gca;
+        set(ax, 'XLim', [-left/1000 right/1000]);
         
         %% Waveform analysis
         % put this is another script
