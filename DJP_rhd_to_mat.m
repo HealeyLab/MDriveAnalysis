@@ -25,11 +25,13 @@ cd(foldername)
 for i = 1:numchan
     filename = strcat(foldername, '_', num2str(i));
     data = amplifier_data(i,:);
-    save(filename, 'data', '-v7.3')
+    sr = frequency_parameters.amplifier_sample_rate;
+    save(filename, 'data', 'sr', '-v7.3')
 end
 % Make the text files
 DJP_make_files();
 % Save stim data
 adc_dat=board_adc_data(2,:);
-save('adc_data', 'adc_dat', '-v7.3')
+adc_sr=frequency_parameters.board_adc_sample_rate;
+save('adc_data', 'adc_dat', 'adc_sr', '-v7.3')
 cd('..')
