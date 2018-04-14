@@ -25,10 +25,10 @@ for file_ind=1:length(files)
     % For each channel
     curr_file = fullfile(files(file_ind).folder, files(file_ind).name)
     load(curr_file);
-    
+
     num_classes = max(cluster_class(:,1))
     load(fullfile(files(file_ind).folder, 'adc_data.mat')); % adc_dat is the variable
-    
+
     %% Making the figure
     handle=figure;
     height = 1+2*num_classes;
@@ -44,19 +44,19 @@ for file_ind=1:length(files)
             diff_data = diff(board_adc_data(2,:)); % so this is just stim times
             jump_start  = find(diff_data > 1);
             jump_end  = find(diff_data < -1);
-            
+
             % Only for the stimulus class we want:
             stim_indices = ismember(stim_order, stim_classes{stimulus_class_ind});
             jump_start = jump_start(stim_indices);
             jump_end = jump_end(stim_indices); % just for the plotting step
-            
-            %% For each stim time, put in raster            
+
+            %% For each stim time, put in raster
             spike_times=cell(length(jump_start),1);
             for stimulus_ind = 1:length(jump_start)
                 % Putting data in raster, window is in ms
                 % Note: adc_sr is a variable saved with adc_data
                 curr = 1 / adc_sr * jump_start(stimulus_ind) * 1000; % converts to milliseconds
-                
+
                 % sp_t is in fact in milliseconds
                 left = 200;
                 right = 1200;
@@ -64,7 +64,7 @@ for file_ind=1:length(files)
                     sp_t(sp_t > (curr - left))',...
                     sp_t(sp_t < (curr + right))')...
                     - curr); % centers
-                
+
                 spike_times{stimulus_ind} = 1 / 1000 * spike_times{stimulus_ind}; % converts ms to seconds
             end
             %% Populating graph
@@ -78,11 +78,11 @@ for file_ind=1:length(files)
             plot(board_adc_data(1, jump_start(1):jump_end(1))) % take first stimulus of that kind
             ax=gca;
             set(ax,'XLim', [jump_start(1) jump_end(1)])
-            
+
             % add num_classes to put it down a row
             raster_axes=subplot(height, width, num_classes+class_ind);
             [xpoints, ~]=plotSpikeRaster(spike_times, 'PlotTYpe','vertline');
-            
+
             % add 2xnum_classes to put down two rows
             histo_axes = subplot(height, width, 2*class_ind+num_classes);
             % histo is in seconds
@@ -90,7 +90,7 @@ for file_ind=1:length(files)
             histogram(histo_axes, xpoints, (-left:bin:right)/1000); % convert ms to s
             ax=gca;
             set(ax, 'XLim', [-left right]/1000); % see last comment
-            
+
             % Waveform analysis
             %[width,ratio]=DJP_waveform(spikes,I);
 
@@ -105,7 +105,7 @@ for file_ind=1:length(files)
     fig_file_name=strrep(fig_file_name, '_', ' '); % b/c of something weird with title function
     title(fig_file_name)
     savefig(handle, fig_file_name, 'compact')
-    
+
     close % should close most recent figure
 end
             %% Histogram
@@ -115,8 +115,8 @@ end
 %             for k = 1:(window/bin) % indices in ms
 %                 % k starts at 0, steps by size bin, converted to s,
 %                 % centered around 0 by subtracting by 0.5 s
-%                 spike_bin = ((k-1) * bin) - (window / 2); 
+%                 spike_bin = ((k-1) * bin) - (window / 2);
 %                 histo_data(k) = histo_data(k) + numel(intersect(...
 %                     spike_times{j}(spike_times{j} * 1000 > spike_bin),... % multiplying by 1000 converts to ms
-%                     spike_times{j}(spike_times{j} * 1000 < spike_bin + bin))); 
+%                     spike_times{j}(spike_times{j} * 1000 < spike_bin + bin)));
 %             end
