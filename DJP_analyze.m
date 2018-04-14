@@ -21,7 +21,7 @@ for j=1:length(files)
     load(fullfile(files(j).folder, 'adc_data.mat')); % adc_dat is the variable
      
     %% For each stimulus class
-    for m = 1:length(stim_order)
+    for stim_ind = 1:length(stim_order)
         
         % For each class of cells
         for i = 1:num_classes
@@ -33,7 +33,7 @@ for j=1:length(files)
             jump_start  = find(diff_data > 1);
             
             % Only for the stimulus class we want:
-            stim_indices = ismember(stim_order, stim_classes{m});
+            stim_indices = ismember(stim_order, stim_classes{stim_ind});
             jump_start = jump_start(stim_indices);
             
             % raster and histo parameters
@@ -89,7 +89,8 @@ for j=1:length(files)
     %% format & save graph
     fig_file_name=strcat(...
         files(j).name(1:end-4),...
-        '_class', num2str(i),...
+        '_neuron_class_', num2str(i),...
+        'stimulus_class_', stim_classes{stim_index},...
         '.fig');
     fig_file_name=strrep(fig_file_name, '_', ' '); % b/c of something weird with title function
 
