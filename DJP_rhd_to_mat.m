@@ -4,7 +4,6 @@
 % their own files in a programmatically created folder.
 close all;
 clear all;
-cd('\DJP_wave_clus\');
 
 %% Concatenate rhd files and get filename
 [foldername,path] = concat_Intan_RHD2000_files;
@@ -31,7 +30,6 @@ end
 % Make the text files
 DJP_make_files();
 % Save stim data
-adc_dat=board_adc_data(2,:);
 adc_sr=frequency_parameters.board_adc_sample_rate;
-save('adc_data', 'adc_dat', 'adc_sr', '-v7.3')
+save('adc_data', 'board_adc_data', 'adc_sr', '-v7.3')
 cd('..')
