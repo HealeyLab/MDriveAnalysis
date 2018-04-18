@@ -23,18 +23,18 @@ clear sr_cell pathsplit stim_text_file fid
 % File == Channel
 for file_ind=1:length(files)
     % For each channel
-    curr_file = fullfile(files(file_ind).folder, files(file_ind).name)
+    curr_file = fullfile(files(file_ind).folder, files(file_ind).name);
     load(curr_file);
 
-    num_classes = max(cluster_class(:,1))
+    num_classes = max(cluster_class(:,1));
     load(fullfile(files(file_ind).folder, 'adc_data.mat')); % adc_dat is the variable
 
     %% Making the figure
-    handle=figure;
+    handle=figure('units','normalized','outerposition',[0 0 1 1]);
     height = 1+2*num_classes;
     width = numel(stim_classes);
     %% For each stimulus class
-    for stimulus_class_ind = 1:length(stim_order)
+    for stimulus_class_ind = 1:length(stim_classes)
         % For each class of cells
         for class_ind = 1:num_classes
             % we ignore class 0, the garbage spikes
@@ -55,42 +55,55 @@ for file_ind=1:length(files)
             for stimulus_ind = 1:length(jump_start)
                 % Putting data in raster, window is in ms
                 % Note: adc_sr is a variable saved with adc_data
-                curr = 1 / adc_sr * jump_start(stimulus_ind) * 1000; % converts to milliseconds
-
+                curr_start = 1 / adc_sr * jump_start(stimulus_ind) * 1000; % converts to milliseconds
+                curr_end = 1 / adc_sr * jump_end(stimulus_ind) * 1000; % converts to milliseconds
                 % sp_t is in fact in milliseconds
                 left = 200;
                 right = 1200;
                 spike_times{stimulus_ind} = (intersect(...
-                    sp_t(sp_t > (curr - left))',...
-                    sp_t(sp_t < (curr + right))')...
-                    - curr); % centers
+                    sp_t(sp_t > curr_start'),... % sp_t(sp_t > (curr - left))',...
+                    sp_t(sp_t < curr_end)')...
+                    - curr_start); % centers
 
-                spike_times{stimulus_ind} = 1 / 1000 * spike_times{stimulus_ind}; % converts ms to seconds
+                spike_times{stimulus_ind} = 1 / 1000 * spike_times{stimulus_ind}'; % converts ms to seconds
             end
             %% Populating graph
-            % add 0*num_classes, put it at top
-            stim_axes = subplot(height, width, class_ind);
-            title_str = strsplit(stim_classes{stimulus_class_ind}, filesep); % 1 x n cell
+            stim_axes = subplot(height, width,...
+                stimulus_class_ind);
+            
+            title_str = strsplit(stim_classes{stimulus_class_ind}, '\'); % 1 x n cell
             title_str = title_str(end); % take nth cell
             title_str = title_str{1}; % take the contents of cell of cell (wtf, matlab)
             title_str = title_str(1:end-4); % removes '.wav'
-            title(stim_axes, stim_classes{stimulus_class_ind})
+            title_str = strrep(title_str, '_', ' ');
+            title(stim_axes, title_str)
+            hold on;
+            
             plot(board_adc_data(1, jump_start(1):jump_end(1))) % take first stimulus of that kind
-            ax=gca;
-            set(ax,'XLim', [jump_start(1) jump_end(1)])
-
+            set(stim_axes,... 'XLim', [jump_start(1) jump_end(1)],...
+                'XTickLabel', [],...
+                'xtick', [],...
+                'YTickLabel', [],...
+                'ytick', [])
+            
             % add num_classes to put it down a row
-            raster_axes=subplot(height, width, num_classes+class_ind);
-            [xpoints, ~]=plotSpikeRaster(spike_times, 'PlotTYpe','vertline');
-
+            raster_axes=subplot(height, width,...
+                numel(stim_classes)+stimulus_class_ind);
+            
+            
+            [xpoints, ~] = plotSpikeRaster(spike_times,...
+                'PlotTYpe','vertline')%,...
+                %'FigHandle', raster_axes);
+                
             % add 2xnum_classes to put down two rows
-            histo_axes = subplot(height, width, 2*class_ind+num_classes);
+            histo_axes = subplot(height, width,...
+                2*numel(stim_classes)+stimulus_class_ind);
             % histo is in seconds
             bin = 0.020; % bin size in s
-            histogram(histo_axes, xpoints, (-left:bin:right)/1000); % convert ms to s
-            ax=gca;
-            set(ax, 'XLim', [-left right]/1000); % see last comment
-
+            histogram(histo_axes, xpoints, (0:bin:(curr_end(1)-curr_start(1))/1000)); % convert ms to s
+            % set(histo_axes, 'XLim', [-left right]/1000); % see last comment
+            
+            
             % Waveform analysis
             %[width,ratio]=DJP_waveform(spikes,I);
 
@@ -99,11 +112,9 @@ for file_ind=1:length(files)
     %% format & save graph
     fig_file_name=strcat(...
         files(file_ind).name(1:end-4),...
-        '_neuron_class_', num2str(class_ind),...
-        'stimulus_class_', stim_classes{stim_index},...
         '.fig');
     fig_file_name=strrep(fig_file_name, '_', ' '); % b/c of something weird with title function
-    title(fig_file_name)
+%     title(fig_file_name)
     savefig(handle, fig_file_name, 'compact')
 
     close % should close most recent figure
