@@ -68,34 +68,36 @@ for file_ind=1:length(files)
                 spike_times{stimulus_ind} = 1 / 1000 * spike_times{stimulus_ind}'; % converts ms to seconds
             end
             %% Populating graph
-            stim_axes = subplot(height, width,...
-                stimulus_class_ind);
-            
-            title_str = strsplit(stim_classes{stimulus_class_ind}, '\'); % 1 x n cell
-            title_str = title_str(end); % take nth cell
-            title_str = title_str{1}; % take the contents of cell of cell (wtf, matlab)
-            title_str = title_str(1:end-4); % removes '.wav'
-            title_str = strrep(title_str, '_', ' ');
-            title(stim_axes, title_str)
-            hold on;
-            
-            plot(board_adc_data(1, jump_start(1):jump_end(1))) % take first stimulus of that kind
-            xlim([jump_start(1) jump_end(1)])
-            set(stim_axes, 'XLim', [0 (jump_end(1)-jump_start(1))],...
-                'XTickLabel', [], 'xtick', [],...
-                'YTickLabel', [], 'ytick', [])
+            if class_ind == 1
+                stim_axes = subplot(height, width,...
+                    stimulus_class_ind);
+                
+                title_str = strsplit(stim_classes{stimulus_class_ind}, '\'); % 1 x n cell
+                title_str = title_str(end); % take nth cell
+                title_str = title_str{1}; % take the contents of cell of cell (wtf, matlab)
+                title_str = title_str(1:end-4); % removes '.wav'
+                title_str = strrep(title_str, '_', ' ');
+                title(stim_axes, title_str)
+                hold on;
+                
+                plot(board_adc_data(1, jump_start(1):jump_end(1))) % take first stimulus of that kind
+                xlim([jump_start(1) jump_end(1)])
+                set(stim_axes, 'XLim', [0 (jump_end(1)-jump_start(1))],...
+                    'XTickLabel', [], 'xtick', [],...
+                    'YTickLabel', [], 'ytick', [])
+            end
             
             % add num_classes to put it down a row
             raster_axes=subplot(height, width,...
-                numel(stim_classes)+stimulus_class_ind);
+                (2 * class_ind - 1) * width + stimulus_class_ind);
             
             [xpoints, ~] = plotSpikeRaster(spike_times,...
-                'PlotTYpe','vertline')%,...
+                'PlotTYpe','vertline', 'XLimForCell', [0 (curr_end(1)-curr_start(1))/1000]);%,...
                 %'FigHandle', raster_axes);
                 
             % add 2xnum_classes to put down two rows
             histo_axes = subplot(height, width,...
-                2*numel(stim_classes)+stimulus_class_ind);
+                2 * class_ind * width + stimulus_class_ind);
             
             % histo is in seconds
             bin = 0.020; % bin size in s
