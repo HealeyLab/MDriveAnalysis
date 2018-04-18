@@ -30,7 +30,12 @@ for file_ind=1:length(files)
     load(fullfile(files(file_ind).folder, 'adc_data.mat')); % adc_dat is the variable
 
     %% Making the figure
-    handle=figure('units','normalized','outerposition',[0 0 1 1]);
+    fig_title = DJP_title(files(file_ind).name);
+    handle=figure('units','normalized',...
+        'outerposition',[0 0 1 1],...
+        'Name', fig_title);
+    title(fig_title)
+    
     height = 1+2*num_classes;
     width = numel(stim_classes);
     %% For each stimulus class
@@ -72,11 +77,7 @@ for file_ind=1:length(files)
                 stim_axes = subplot(height, width,...
                     stimulus_class_ind);
                 
-                title_str = strsplit(stim_classes{stimulus_class_ind}, '\'); % 1 x n cell
-                title_str = title_str(end); % take nth cell
-                title_str = title_str{1}; % take the contents of cell of cell (wtf, matlab)
-                title_str = title_str(1:end-4); % removes '.wav'
-                title_str = strrep(title_str, '_', ' ');
+                title_str = DJP_title(stim_classes{stimulus_class_ind});
                 title(stim_axes, title_str)
                 hold on;
                 
@@ -115,7 +116,7 @@ for file_ind=1:length(files)
         '.fig');
     fig_file_name=strrep(fig_file_name, '_', ' '); % b/c of something weird with title function
 %     title(fig_file_name)
-    savefig(handle, fig_file_name, 'compact')
+    savefig(handle, fullfile(files(file_ind).folder, fig_file_name), 'compact')
 
     close % should close most recent figure
 end
