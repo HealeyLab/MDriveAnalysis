@@ -26,8 +26,8 @@ function [width, ratio ] = DJP_waveform( spikes, I )
             end
         end
         %% Proceed with data analysis
-        width=DJP_p2p(sp_mean, parameter);
-        ratio=DJP_sym(sp_mean, parameter);
+        width=DJP_p2p(sp_mean, str2double(parameter));
+        ratio=DJP_sym(sp_mean, str2double(parameter));
 
 end
 
