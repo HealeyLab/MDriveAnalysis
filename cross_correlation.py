@@ -13,7 +13,9 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import re
 import scipy.io as sio
-import seaborn as sns
+import sys
+from tkinter import filedialog
+#import seaborn as sns
 from pypaths.pypaths import Pypath
 pp = Pypath()
 '''Sort into a data frame with fields
@@ -25,8 +27,9 @@ def make_df():
     # \left_ncm_2_baseline_180329_183406
     #res = [file for file in os.listdir(path) if re.search(r'(abc|123|a1b).*\.txt$', file)]
     df = pd.DataFrame(columns=['trains','channel', 'unit'])
+    path = filedialog.askdirectory()
     # Test data directory
-    path = r'G:\HealeyDataAndScripts\mdrivemdialysis_PILOT_1' #windows
+#    path = r'G:\HealeyDataAndScripts\mdrivemdialysis_PILOT_1' #windows
     
     path = pp.to_native(path)
     for file in glob.iglob(pp.join([path,'**','times_*.mat']), recursive=True):
@@ -55,17 +58,27 @@ def make_df():
                      'channel' : file,
                      'unit' : i})
             df = pd.concat([df, df_temp])
-    df.to_pickle(path+'df.pkl')
+  
+    outpath = pp.join([path,'df.pkl'])
+    df.to_pickle(outpath)
+    return outpath
     # unpickled_df = pd.read_pickle("./dummy.pkl")
 
-def make_correlograms():
-#    df = pd.read_pickle(r'G:\HealeyDataAndScripts\mdrivemdialysis_PILOT_1\df.pkl')
-    df = pd.read_pickle(r'/media/alp/Local Disk/HealeyDataAndScripts/mdrivemdialysis_PILOT_1/df.pkl')
+def make_correlogram(filepath=''):
+
+    #    df = pd.read_pickle(r'G:\HealeyDataAndScripts\mdrivemdialysis_PILOT_1\df.pkl')
+#    df = pd.read_pickle(r'/media/alp/Local Disk/HealeyDataAndScripts/mdrivemdialysis_PILOT_1/df.pkl')
+    df = pd.read_pickle(filepath)
     ### Get base filename info
     fileinfo = df.loc[[1], 'channel'].tolist()[0].split('\\')
     filepath = pp.join(fileinfo[:-1], win=True)
     filename = fileinfo[-1]
     '''['G:', 'HealeyDataAndScripts', 'mdrivemdialysis_PILOT_1', 'left_ncm_180329_181407', 'times_left_ncm_180329_181407_1.mat']'''
+    def get_trains(chan):
+        newfilename = filename[:-5] + str(chan) + '.mat' # [:-5] is minus #.mat (# always equals 1)
+        chan_file = pp.join([filepath, newfilename], win=True)
+        trains = np.array(df.loc[df['channel']==chan_file, ['trains']])
+        return np.array([x[0] for x in trains])
     
     cmd = ''
     while cmd not in ['q', 'quit']:
@@ -76,12 +89,6 @@ def make_correlograms():
             chan1 = args[0]
             chan2 = args[1]
             
-            def get_trains(chan):
-                newfilename = filename[:-5] + chan2 + '.mat' # [:-5] is minus #.mat (# always equals 1)
-                chan_file = pp.join([filepath, newfilename], win=True)
-                trains = np.array(df.loc[df['channel']==chan_file, ['trains']])
-                return np.array([x[0] for x in trains])
-            
             train1 = get_trains(chan1)
             train2 = get_trains(chan2)
             
@@ -89,50 +96,87 @@ def make_correlograms():
             for i in range(len(train1)):
                 cov_list = np.append(cov_list, (train1[i] - train2))
             
-            return cov_list
+            plt.close()
+            plt.hist(cov_list, bins=range(-50, 51, 5))
+            plt.show()
             '''
             from elephant.conversion import BinnedSpikeTrain
             cov_matrix = covariance(BinnedSpikeTrain([st1, st2], binsize=5*ms))
             '''
-def make_all_correlograms(numchan=32, filepath=r'/media/alp/Local Disk/HealeyDataAndScripts/mdrivemdialysis_PILOT_1/df.pkl'):
+def make_all_correlograms(numchan=32, filepath=''):
+    ''' format
+     inputdir
+     |trial1dir
+      |trial1/trial1chan1.mat
+      |...
+      |trial1/trial1chann.mat
+     |trial2dir
+      |trial2/trial2chan1.mat
+      |...
+      |trial2/trial2chann.mat
+     |trial3dir
+      |trial3/trial3chan1.mat
+      |...
+      |trial3/trial3chann.mat
+    '''
+
     df = pd.read_pickle(filepath)
-    ### Get base filename info
-    fileinfo = df.loc[[1], 'channel'].tolist()[0].split('\\')
-    filepath = pp.join(fileinfo[:-1], win=True)
-    filename = fileinfo[-1]
+    # Which actual base filenames are there? Which trials are there? Excludes channel names.
+    listolists = list(map(lambda x: x.split('\\')[:-1],df.loc[[1], 'channel'].tolist()))
+    setto = set(map(lambda x: '\\'.join(x), listolists))         
+    letto = list(setto)
     
-    def get_trains(chan):
-        newfilename = filename[:-5] + chan2 + '.mat' # [:-5] is minus #.mat (# always equals 1)
-        chan_file = pp.join([filepath, newfilename], win=True)
-        trains = np.array(df.loc[df['channel']==chan_file, ['trains']])
-        return np.array([x[0] for x in trains])
+    # For all trials in a day:
+    for trial in letto:
+        all_trains = []
+        # Finding the number of channels present at each trial
+        chanfiles=list(set(df[df.channel.str.startswith(trial)]['channel']))
+        numchan = len(chanfiles) # this will be changed shortly.
+        
+        for chanfile in chanfiles:
+            train = np.array(df[df['channel'] == chanfile]['trains'])
+            all_trains.append(train)
+
+        # Housekeeping beforehand
+#        plt.tight_layout()
+        
+        for row in range(numchan-1):
+            for col in range(row+1, numchan-1):
+                cov_list=np.empty(0)
+                
+                for i in range(len(all_trains[row])):
+                    cov_list = np.concatenate((cov_list, (all_trains[row][i] - all_trains[col])))
     
-    all_trains = np.empty(0)
-    for i in range(numchan):
-        np.concatenate(all_trains, get_trains(i))
+                plot_ind = (numchan-1)*row + col
+                plt.subplot(numchan-1, numchan-1, plot_ind)
+                plt.hist(cov_list, bins=range(-50, 51, 5))
     
-    
-    for row in range(numchan-1):
-        for col in range(row+1, numchan-1):
-            cov_list = np.empty(0)    
-            for i in range(len(all_trains[row])):
-                cov_list = np.append(cov_list, (all_trains[row][i] - all_trains[col]))
-                    
-            subplot(numchan-1, numchan-1, (numchan-1)*row + col)
-            plt.
-    
+                plt.gca().axes.get_yaxis().set_visible(False) # removing y axis
+                plt.gca().axes.get_xaxis().set_visible(False) # removing y axis
+                plt.gca().spines['left'].set_visible(False) # remove frame...
+                plt.gca().spines['right'].set_visible(False) # remove frame...
+                plt.gca().spines['top'].set_visible(False) # remove frame...
+                plt.gca().spines['bottom'].set_visible(False) # remove frame...
+                
+                sys.stdout.flush()
+                sys.stdout.write('\r'+str(int(( row*numchan + col)/2 ))+'of'+str((numchan-1)*(numchan-2)/2))
+        
+        savepath = pp.join([filepath[:-1*len('/df.pkl')], trial.split('\\')[-1], 'correlo_allunits.eps'])
+        print(savepath)
+        plt.savefig(savepath)
+        
+        
 if __name__ == "__main__":
     cmd = ''
     while cmd != 'q' and cmd != 'quit':
-        cmd = input('new df or load old one? (all/new/old/quit/q)\n')
+        cmd = input('new df or load old one? (all/single/new/quit/q)\n')
         if cmd == 'new':
-            make_df()
-        elif cmd == 'old':
-            cov_list = make_correlograms()
-            plt.close()
-            plt.hist(cov_hist, bins=range(-50, 51, 5))
-            plt.show()
-#            plt.xlim((-50, 50))
-            plt.ginput(1)
+            outpath = make_df()
+            break
+        elif cmd == 'single':
+            make_correlogram(filepath=filedialog.askopenfilename())
+#           plt.xlim((-50, 50))
+            break
         elif cmd=='all':
-            make_all_correlograms()
+            make_all_correlograms(filepath=filedialog.askopenfilename())
+            break
