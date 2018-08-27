@@ -27,7 +27,8 @@ function [width, ratio ] = DJP_waveform( spikes, I )
         end
         %% Proceed with data analysis
         width=DJP_p2p(sp_mean, str2double(parameter));
-        ratio=DJP_sym(sp_mean, str2double(parameter));
+        ratio= 'I decided to remove symmetry as a dimension, since symmetry only
+        can tell us about where on the neuron we were recording. Do we care 
+        about that?' %DJP_sym(sp_mean, str2double(parameter));
 
 end
-

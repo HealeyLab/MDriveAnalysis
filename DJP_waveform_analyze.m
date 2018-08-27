@@ -9,48 +9,56 @@
 close all;
 clear all;
 
-use_cur_dir = input('Use current directory or choose somewhere else? (y/n)', 's'); 
-if lower(use_cur_dir) == 'y'
-    direc = pwd;
-elseif lower(use_cur_dir) == 'n'
-    direc = uigetdir;
-end
-
+% Get working directory
 % Lower branches will have smaller master files (summaries of waveform
 % information) than higher branches, which will incorporate the lower
 % master files into themselves...at some point. I'm not sure when. For now,
 % just make the functionality to create a master file in a particular
 % directory.    
 
-%% Current master file
-% _spikes.mat files contain spikes, an n by 64 double matrix
+% *_spikes.mat files contain spikes, an n by 64 double matrix
 
 % a = dir(fullfile(pwd, '*_spikes.mat'))
 %   16�1 struct array with fields:
 %     name, folder, date, bytes, isdir
 
-% Check for master exists
+% basic mode input, may want to hardcode later
+use_cur_dir = input('Use current directory or choose somewhere else? (y/n)', 's'); 
+if lower(use_cur_dir) == 'y'
+    direc = pwd;
+elseif lower(use_cur_dir) == 'n'
+    direc = uigetdir;
+end
+% Check master exists
 master_exists = ~isempty(dir(fullfile(direc, 'spike_master.mat')));
 master_path = fullfile(direc, 'spike_master.mat');
 if master_exists
     load(master_path)
 else
-    % NaN(p2p, symmetry, [include, exclude, unsure])
+    % NaN(p2p, firingrate, [include, exclude, unsure])
     % Note: each file will (can) have multiple rows, since they can have
     % multiple units
     summary = NaN(3,1); % ones(rows,columns) or ones(height, width)
 end
+
     
+% ***************************
+% for each channel, make cell
+
 times_files = dir(fullfile(direc, 'times_*.mat'));
-% Looping through files to make iterable struct
 data_cell = cell(0);
 for i = 1:size(times_files, 1)
-    
+
     disp([times_files(i).name])
     
     % load current data, both *_spikes.mat file and times_*.mat file
     times_file = fullfile(times_files(i).folder, times_files(i).name);
     load(times_file, 'cluster_class', 'spikes');
+    load(raw_data_file, 'data','sr')
+    % normal .mat raw data file:
+    % data                  1xnumel(data points)
+    % sr                    srlen
+    
     % *_spikes.mat:
     %   index               1x7142                57136  double
     %   par                 1x1                    3886  struct
@@ -72,10 +80,13 @@ for i = 1:size(times_files, 1)
     % Looping through classes IN EACH FILE
     num_classes = max(cluster_class(:,1)); % this excludes the garbage class, 0
     for j = 1:num_classes
-        data_cell{end+1} = [times_file ' ' num2str(j)]; % take apart later
+        data_cell{end+1} = [times_file ' ' num2str(j) ' ' numel(data)/sr]; % take apart later
+        clear(data, sr)
     end
 end
 
+% **********************************************
+% for each channel (cell), populate the database
 for cell_ind = 1:length(data_cell) % we ignore class 0, the garbage spikes
     % Now load the data for current, unpack data_cell
     split_data = strsplit(data_cell{cell_ind}); % whitespace default delimiter, unpacks into new cell
@@ -83,6 +94,8 @@ for cell_ind = 1:length(data_cell) % we ignore class 0, the garbage spikes
     % Get current cluster & plot
     class_ind = split_data{2};
     I = find(cluster_class(:,1) == str2double(class_ind)); % all indices of cluster class i
+    
+    FR = numel(I)/split_data{3}; % in Hz
     
     avg_spk = mean(spikes(I, :));
     plot(avg_spk)
@@ -104,15 +117,17 @@ for cell_ind = 1:length(data_cell) % we ignore class 0, the garbage spikes
             case {'i', 'e', 'u'}
                 % include: add it to our local master matrix with 1 as
                 % third variable, indicates include
+                
                 % exclude: add it to our local master matrix with 2 as
                 % third variable, indicates exclude
+                
                 % unsure: add it to our local master matrix with 3 as
                 % third variable, indicates unsure
                 if userin == 'e'
-                    [p2p, sym] = deal(NaN); % like deal NaN cards to each variable
+                    [p2p, FR] = deal(NaN); % like deal NaN cards to each variable
                     code = 2; % I know this numbering is unintuitive. Sorry. See below for clarification.
                 else
-                    [p2p, sym] = DJP_waveform(spikes, I);
+                    [p2p, FR] = DJP_waveform(spikes, I);
                     if userin == 'i'
                         code = 1;
                     else
@@ -120,11 +135,11 @@ for cell_ind = 1:length(data_cell) % we ignore class 0, the garbage spikes
                     end
                 end
                 
-                if cell_ind == (length(summary) + 1)
-                                                         %          [1        2        3     ]
-                    summary = [summary; [p2p sym code]]; % [p2p sym [include, exclude, unsure]]
+                % adding data to database
+                if cell_ind == (length(summary) + 1)                                         %          [1        2        3     ]
+                    summary = [summary; [p2p FR code]]; % [p2p FR [include, exclude, unsure]]
                 elseif cell_ind <= length(summary)
-                    summary(:, cell_ind) = [p2p sym code];
+                    summary(:, cell_ind) = [p2p FR code];
                 else
                     throw(ME)
                 end
@@ -132,6 +147,7 @@ for cell_ind = 1:length(data_cell) % we ignore class 0, the garbage spikes
             case 't'
                 % trace: view trace (again)
                 plot(avg_spike)
+                
             case 'c'
                 % cancel: Create/append master file and close down
                 if master_exists % must make current matfile
@@ -140,12 +156,15 @@ for cell_ind = 1:length(data_cell) % we ignore class 0, the garbage spikes
                     m = matfile(master_path, 'Writable', true);
                     m.summary = summary;
                 end
-                % cancel command also breaks for loop
+                % cancel command also breaks out for loop
+                
             case 'v'
                 % view progress: see what the summary matrix looks like
                 disp(summary)
+            
             otherwise
                 disp(['Command not recognized. Try again']);
+        
         end % end of switch
     end % end of while
     
